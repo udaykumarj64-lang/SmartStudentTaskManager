@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Student Task Manager</title>
+
+    <!-- CSS START -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        header {
+            background-color: #2563eb;
+            color: white;
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        .summary {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background-color: white;
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .card p {
+            color: #2563eb;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .box {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 15px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 3px;
+        }
+
+        .add-btn {
+            background-color: #2563eb;
+            color: white;
+            width: 100%;
+        }
+
+        .complete-btn {
+            background-color: #16a34a;
+            color: white;
+        }
+
+        .delete-btn {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .task {
+            background-color: #f8fafc;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .done {
+            text-decoration: line-through;
+            color: green;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .summary {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <!-- CSS END -->
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Smart Student Task Manager</h1>
+        <p>Manage your assignments, exams and deadlines!</p>
+    </header>
+
+    <div class="summary">
+
+        <div class="card">
+            <h3>Total Tasks</h3>
+            <p id="total">0</p>
+        </div>
+
+        <div class="card">
+            <h3>Pending Tasks</h3>
+            <p id="pending">0</p>
+        </div>
+
+        <div class="card">
+            <h3>Completed Tasks</h3>
+            <p id="completed">0</p>
+        </div>
+
+    </div>
+
+    <div class="box">
+
+        <h2>Add New Task</h2>
+
+        <form id="taskForm">
+
+            <label for="title">Task Name:</label>
+
+            <input
+                type="text"
+                id="title"
+                placeholder="Enter your task"
+                required
+            >
+
+            <label for="deadline">Deadline:</label>
+
+            <input
+                type="date"
+                id="deadline"
+                required
+            >
+
+            <button type="submit" class="add-btn">
+                Add Task
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="box">
+
+        <h2>My Tasks</h2>
+
+        <div id="taskList"></div>
+
+        <p id="empty">No tasks added yet!</p>
+
+    </div>
+
+</div>
+
+<!-- JAVASCRIPT START -->
+<script>
+
+    const form = document.getElementById("taskForm");
+    const titleInput = document.getElementById("title");
+    const deadlineInput = document.getElementById("deadline");
+    const taskList = document.getElementById("taskList");
+    const empty = document.getElementById("empty");
+
+    let tasks = [];
+
+    // Load saved tasks
+    try {
+        const saved = JSON.parse(
+            localStorage.getItem("studentTasks") || "[]"
+        );
+
+        if (Array.isArray(saved)) {
+            tasks = saved.filter(task =>
+                task &&
+                Number.isSafeInteger(task.id) &&
+                typeof task.title === "string" &&
+                typeof task.deadline === "string" &&
+                typeof task.completed === "boolean"
+            );
+        }
+    } catch (error) {
+        tasks = [];
+    }
+
+    // Get today's date
+    function getToday() {
+        const now = new Date();
+
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
+    deadlineInput.min = getToday();
+
+    // Save tasks
+    function saveTasks() {
+        try {
+            localStorage.setItem(
+                "studentTasks",
+                JSON.stringify(tasks)
+            );
+        } catch (error) {
+            alert("Tasks save cheyyalekapoyamu. Browser storage check cheyyandi.");
+        }
+    }
+
+    // Add task
+    form.addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        const title = titleInput.value.trim();
+        const deadline = deadlineInput.value;
+
+        if (title === "") {
+            alert("Please enter a task name!");
+            return;
+        }
+
+        if (!deadline || deadline < getToday()) {
+            alert("Please select today or a future deadline!");
+            return;
+        }
+
+        const task = {
+            id: Date.now(),
+            title: title,
+            deadline: deadline,
+            completed: false
+        };
+
+        tasks.push(task);
+
+        saveTasks();
+        displayTasks();
+
+        form.reset();
+        deadlineInput.min = getToday();
+
+    });
+
+    // Display tasks
+    function displayTasks() {
+
+        taskList.innerHTML = "";
+
+        empty.style.display =
+            tasks.length === 0 ? "block" : "none";
+
+        tasks.forEach(function(task) {
+
+            const div = document.createElement("div");
+            div.className = "task";
+
+            const heading = document.createElement("h3");
+            heading.textContent = task.title;
+
+            if (task.completed) {
+                heading.classList.add("done");
+            }
+
+            const date = document.createElement("p");
+            date.textContent = "Deadline: " + task.deadline;
+
+            const status = document.createElement("p");
+            status.className = "status";
+
+            if (task.completed) {
+                status.textContent = "Status: Completed";
+                status.style.color = "green";
+            } else if (task.deadline < getToday()) {
+                status.textContent = "Status: Overdue";
+                status.style.color = "red";
+            } else {
+                status.textContent = "Status: Pending";
+                status.style.color = "#b45309";
+            }
+
+            const completeButton = document.createElement("button");
+
+            completeButton.className = "complete-btn";
+            completeButton.textContent =
+                task.completed ? "Undo" : "Complete";
+
+            completeButton.addEventListener("click", function() {
+                task.completed = !task.completed;
+
+                saveTasks();
+                displayTasks();
+            });
+
+            const deleteButton = document.createElement("button");
+
+            deleteButton.className = "delete-btn";
+            deleteButton.textContent = "Delete";
+
+            deleteButton.addEventListener("click", function() {
+
+                if (confirm("Do you want to delete this task?")) {
+
+                    tasks = tasks.filter(function(item) {
+                        return item.id !== task.id;
+                    });
+
+                    saveTasks();
+                    displayTasks();
+                }
+
+            });
+
+            div.appendChild(heading);
+            div.appendChild(date);
+            div.appendChild(status);
+            div.appendChild(completeButton);
+            div.appendChild(deleteButton);
+
+            taskList.appendChild(div);
+
+        });
+
+        updateSummary();
+    }
+
+    // Update task counts
+    function updateSummary() {
+
+        const totalCount = tasks.length;
+
+        const completedCount = tasks.filter(function(task) {
+            return task.completed;
+        }).length;
+
+        const pendingCount = totalCount - completedCount;
+
+        document.getElementById("total").textContent = totalCount;
+
+        document.getElementById("pending").textContent = pendingCount;
+
+        document.getElementById("completed").textContent = completedCount;
+
+    }
+
+    // Show tasks when page opens
+    displayTasks();
+
+</script>
+<!-- JAVASCRIPT END -->
+
+</body>
+</html>
